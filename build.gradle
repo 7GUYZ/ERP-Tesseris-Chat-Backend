@@ -1,0 +1,67 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.4.6'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.ict'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.4'
+	compileOnly 'org.projectlombok:lombok'
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	runtimeOnly 'com.mysql:mysql-connector-j'
+	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.4'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+// JVM 인코딩 설정
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+// Spring Boot 실행 시 JVM 옵션 설정
+bootRun {
+    jvmArgs = [
+        '-Dfile.encoding=UTF-8',
+        '-Duser.language=ko',
+        '-Duser.country=KR'
+    ]
+}
+
+// 테스트 실행 시 JVM 옵션 설정
+test {
+    jvmArgs = [
+        '-Dfile.encoding=UTF-8',
+        '-Duser.language=ko',
+        '-Duser.country=KR'
+    ]
+}

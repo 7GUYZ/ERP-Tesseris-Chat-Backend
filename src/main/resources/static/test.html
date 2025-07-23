@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>채팅방 접속자 수 테스트</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .room-info { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .user-count { font-size: 18px; font-weight: bold; color: #007bff; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        input { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 3px; }
+        .log { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 3px; max-height: 200px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>채팅방 접속자 수 테스트</h1>
+        
+        <div class="room-info">
+            <h3>채팅방 생성</h3>
+            <input type="text" id="roomName" placeholder="채팅방 이름" value="테스트방">
+            <button onclick="createRoom()">채팅방 생성</button>
+        </div>
+        
+        <div class="room-info">
+            <h3>채팅방 목록</h3>
+            <button onclick="getRooms()">채팅방 목록 조회</button>
+            <div id="roomList"></div>
+        </div>
+        
+        <div class="room-info">
+            <h3>접속자 수 조회</h3>
+            <input type="text" id="roomId" placeholder="채팅방 ID">
+            <button onclick="getUserCount()">접속자 수 조회</button>
+            <button onclick="getAllUserCounts()">모든 방 접속자 수</button>
+            <button onclick="getRoomSessions()">세션 목록 조회</button>
+            <div id="userCountResult"></div>
+        </div>
+        
+        <div class="room-info">
+            <h3>WebSocket 연결 테스트</h3>
+            <input type="text" id="wsRoomId" placeholder="연결할 채팅방 ID">
+            <button onclick="connectToRoom()">채팅방 연결</button>
+            <button onclick="disconnect()">연결 해제</button>
+            <div id="wsStatus">연결 상태: 미연결</div>
+        </div>
+        
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        let stompClient = null;
+        let currentRoomId = null;
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        async function createRoom() {
+            const roomName = document.getElementById('roomName').value;
+            try {
+                const response = await fetch('/chat/room', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: roomName })
+                });
+                const room = await response.json();
+                log(`채팅방 생성됨: ${room.name} (ID: ${room.roomId})`);
+                document.getElementById('roomId').value = room.roomId;
+                document.getElementById('wsRoomId').value = room.roomId;
+            } catch (error) {
+                log(`채팅방 생성 실패: ${error.message}`);
+            }
+        }
+        
+        async function getRooms() {
+            try {
+                const response = await fetch('/chat/rooms');
+                const rooms = await response.json();
+                const roomListDiv = document.getElementById('roomList');
+                roomListDiv.innerHTML = '<h4>채팅방 목록:</h4>';
+                rooms.forEach(room => {
+                    roomListDiv.innerHTML += `<div>${room.name} (ID: ${room.roomId})</div>`;
+                });
+                log(`채팅방 목록 조회: ${rooms.length}개 방`);
+            } catch (error) {
+                log(`채팅방 목록 조회 실패: ${error.message}`);
+            }
+        }
+        
+        async function getUserCount() {
+            const roomId = document.getElementById('roomId').value;
+            if (!roomId) {
+                log('채팅방 ID를 입력하세요');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/chat/room/${roomId}/users/count`);
+                const result = await response.json();
+                const resultDiv = document.getElementById('userCountResult');
+                resultDiv.innerHTML = `<div class="user-count">방 ID: ${result.roomId}, 접속자 수: ${result.userCount}명</div>`;
+                log(`접속자 수 조회: 방 ${roomId} - ${result.userCount}명`);
+            } catch (error) {
+                log(`접속자 수 조회 실패: ${error.message}`);
+            }
+        }
+        
+        async function getAllUserCounts() {
+            try {
+                const response = await fetch('/chat/rooms/users/count');
+                const counts = await response.json();
+                const resultDiv = document.getElementById('userCountResult');
+                resultDiv.innerHTML = '<h4>모든 방 접속자 수:</h4>';
+                Object.entries(counts).forEach(([roomId, count]) => {
+                    resultDiv.innerHTML += `<div>방 ${roomId}: ${count}명</div>`;
+                });
+                log(`전체 접속자 수 조회 완료`);
+            } catch (error) {
+                log(`전체 접속자 수 조회 실패: ${error.message}`);
+            }
+        }
+        
+        async function getRoomSessions() {
+            const roomId = document.getElementById('roomId').value;
+            if (!roomId) {
+                log('채팅방 ID를 입력하세요');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/chat/room/${roomId}/sessions`);
+                const result = await response.json();
+                const resultDiv = document.getElementById('userCountResult');
+                resultDiv.innerHTML = `<div>방 ID: ${result.roomId}, 세션 수: ${result.count}개</div>`;
+                resultDiv.innerHTML += '<div>세션 목록: ' + result.sessions.join(', ') + '</div>';
+                log(`세션 목록 조회: 방 ${roomId} - ${result.count}개 세션`);
+            } catch (error) {
+                log(`세션 목록 조회 실패: ${error.message}`);
+            }
+        }
+        
+        function connectToRoom() {
+            const roomId = document.getElementById('wsRoomId').value;
+            if (!roomId) {
+                log('채팅방 ID를 입력하세요');
+                return;
+            }
+            
+            const socket = new SockJS('/ws');
+            stompClient = Stomp.over(socket);
+            
+            stompClient.connect({}, function(frame) {
+                log(`WebSocket 연결됨: ${frame}`);
+                document.getElementById('wsStatus').innerHTML = `연결 상태: 연결됨 (방: ${roomId})`;
+                currentRoomId = roomId;
+                
+                // 채팅방 구독
+                stompClient.subscribe(`/topic/${roomId}`, function(message) {
+                    log(`메시지 수신: ${message.body}`);
+                });
+                
+                // 접속자 수 업데이트 구독
+                stompClient.subscribe(`/topic/${roomId}/users/count`, function(message) {
+                    const data = JSON.parse(message.body);
+                    log(`접속자 수 업데이트: ${data.userCount}명`);
+                });
+                
+                log(`채팅방 ${roomId} 구독 완료`);
+            }, function(error) {
+                log(`WebSocket 연결 실패: ${error}`);
+            });
+        }
+        
+        function disconnect() {
+            if (stompClient) {
+                stompClient.disconnect();
+                stompClient = null;
+                currentRoomId = null;
+                document.getElementById('wsStatus').innerHTML = '연결 상태: 연결 해제됨';
+                log('WebSocket 연결 해제됨');
+            }
+        }
+        
+        // 페이지 로드 시 채팅방 목록 조회
+        window.onload = function() {
+            getRooms();
+        };
+    </script>
+</body>
+</html> 
