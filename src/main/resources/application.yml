@@ -1,0 +1,71 @@
+server:
+  port: 19092
+  tomcat:
+    uri-encoding: UTF-8
+    max-http-form-post-size: 500MB  # 대용량 데이터 처리를 위해 증가
+    max-swallow-size: 500MB  # 대용량 데이터 처리를 위해 증가
+    threads:
+      max: 200  # 스레드 풀 크기 증가
+      min-spare: 10
+
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  application:
+    name: ERP-project-chat-backend
+
+  # ??? ??
+  messages:
+    encoding: UTF-8
+
+  # DB ??
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${CHAT_DB_URL}
+    username: ${CHAT_DB_USER}
+    password: ${CHAT_DB_PASSWORD}
+
+  # Data JPA 설정
+  jpa:
+    show-sql: true # SQL 쿼리 출력 여부
+    hibernate:
+      ddl-auto: none # 자동. 테이블 자동 생성 DB에 맞춰서 설정
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+        implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
+    properties:
+      hibernate:
+        default_batch_fetch_size: 1000  # 대용량 데이터 처리를 위해 증가
+        jdbc:
+          batch_size: 1000  # 배치 크기 증가
+          fetch_size: 1000  # 페치 크기 증가
+        format_sql: true # SQL 포맷팅
+        highlight_sql: true # ANSI 색상으로 출력
+        dialect: org.hibernate.dialect.MariaDBDialect
+        globally_quoted_identifiers: true
+        globally_quoted_identifiers_skip_column_definitions: true
+        org.hibernate.SQL: debug # logger로 출력
+        org.hibernate.type: trace
+        hibernate:
+          globally_quoted_identifiers: true
+          globally_quoted_identifiers_skip_column_definitions: true
+          format_sql: true
+          use_sql_comments: true
+
+logging:
+  level:
+    org:
+      springframework:
+        web:
+          socket: DEBUG
+        messaging: DEBUG
+        bean:
+          factory:
+            support: DEBUG
+      security: DEBUG
+    # Feign 로깅 활성화
+    feign: DEBUG

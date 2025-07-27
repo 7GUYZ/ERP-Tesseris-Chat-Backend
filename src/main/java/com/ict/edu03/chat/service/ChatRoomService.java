@@ -6,9 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
-
 import org.springframework.stereotype.Service;
-
 import com.ict.edu03.chat.dto.ChatRoom;
 
 @Service
