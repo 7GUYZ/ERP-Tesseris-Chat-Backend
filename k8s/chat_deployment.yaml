@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-backend
+  namespace: default
+  labels:
+    app: chat-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chat-backend
+  template:
+    metadata:
+      labels:
+        app: chat-backend
+    spec:
+      containers:
+        - name: chat-backend
+          image: __DOCKER_IMAGE__:__TAG__
+          ports:
+            - containerPort: 19092
+          env:
+            - name: CHAT_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: chat-backend-secret
+                  key: CHAT_DB_URL
+            - name: CHAT_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: chat-backend-secret
+                  key: CHAT_DB_USER
+            - name: CHAT_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: chat-backend-secret
+                  key: CHAT_DB_PASSWORD
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 19092
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 19092
+            initialDelaySeconds: 30
+            periodSeconds: 5 
