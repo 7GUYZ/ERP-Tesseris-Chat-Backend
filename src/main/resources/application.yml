@@ -76,3 +76,13 @@ logging:
           factory:
             support: DEBUG
       security: DEBUG
+
+# Actuator 설정
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
