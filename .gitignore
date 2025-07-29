@@ -39,3 +39,4 @@ src/main/resources/application.properties
 
 # Kubernetes generated files
 k8s/*.generated.yaml
+.env
