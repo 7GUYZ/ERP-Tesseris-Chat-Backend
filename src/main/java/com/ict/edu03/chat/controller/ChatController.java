@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -19,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ict.edu03.chat.dto.ResponseDTO;
 import com.ict.edu03.chat.dto.SearchResponseDTO;
+import com.ict.edu03.chat.dto.RequestDTO.AlarmCheckRequestDTO;
 import com.ict.edu03.chat.dto.RequestDTO.InvitationRequestDTO;
 import com.ict.edu03.chat.dto.RequestDTO.MessageRequestDTO;
 import com.ict.edu03.chat.dto.RequestDTO.RoomRequestDTO;
@@ -93,12 +95,27 @@ public class ChatController {
      * @return
      */
     @PostMapping("/{room}/invitation")
-    public ResponseEntity<?> UserInvitation(@PathVariable("room") String room, @RequestBody InvitationRequestDTO invitationRequestDTO) {
+    public ResponseEntity<?> UserInvitation(@PathVariable("room") String room,
+            @RequestBody InvitationRequestDTO invitationRequestDTO) {
         try {
             chatService.userInvitation(room, invitationRequestDTO);
             return ResponseEntity.ok(ResponseDTO.createSuccessResponse("유저 초대 성공", null));
         } catch (Exception e) {
             log.error("UserInvitation Error: {}", e.getMessage());
+            return ResponseEntity.ok(ResponseDTO.createErrorResponse(404, e.getMessage()));
+        }
+    }
+
+    /**
+     * check alram
+     */
+    @PutMapping("/alarm")
+    public ResponseEntity<?> CheckAlram(@RequestBody AlarmCheckRequestDTO alarmCheck) {
+        try {
+            log.info("CheckAlram: {}", alarmCheck);
+            return ResponseEntity.ok(chatService.checkAlram(alarmCheck));
+        } catch (Exception e) {
+            log.error("Error: {}", e.getMessage());
             return ResponseEntity.ok(ResponseDTO.createErrorResponse(404, e.getMessage()));
         }
     }

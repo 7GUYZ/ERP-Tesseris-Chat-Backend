@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.ict.edu03.chat.dto.ResponseDTO;
 import com.ict.edu03.chat.dto.SearchResponseDTO;
+import com.ict.edu03.chat.dto.RequestDTO.AlarmCheckRequestDTO;
 import com.ict.edu03.chat.dto.RequestDTO.InvitationRequestDTO;
 import com.ict.edu03.chat.dto.RequestDTO.MessageRequestDTO;
 import com.ict.edu03.chat.entity.ChatLog;
@@ -198,5 +199,27 @@ public class ChatService {
             log.info("{}의 방 참여자 로그 저장 완료", userid);
         }
         return ResponseEntity.ok(ResponseDTO.createSuccessResponse("유저 초대 성공", null));
+    }
+    /**
+     * check alram
+     */
+    @Transactional
+    public ResponseEntity<?> checkAlram(AlarmCheckRequestDTO alarmCheck) {
+        try {
+            if (!roomRepository.existsById(Long.parseLong(alarmCheck.getRoom_index()))) {
+                throw new RuntimeException("존재하지 않는 방입니다.");
+            }
+           // 기존데이터 조회
+           RoomParticipants roomParticipants = roomParticipantsRepository.findByUseridAndRoomindex(alarmCheck.getUser_id(), Long.parseLong(alarmCheck.getRoom_index()));
+            if (roomParticipants != null) {
+                roomParticipants.setNotificationsenabled(false);
+                roomParticipantsRepository.save(roomParticipants);
+                log.info("{}의 알림 저장 성공", alarmCheck.getUser_id());
+            }
+            return ResponseEntity.ok(ResponseDTO.createSuccessResponse("알림 저장 성공", null));
+        } catch (Exception e) {
+            log.error("CheckAlram Error: {}", e.getMessage());
+            return ResponseEntity.ok(ResponseDTO.createErrorResponse(404, e.getMessage()));
+        }
     }
 }
