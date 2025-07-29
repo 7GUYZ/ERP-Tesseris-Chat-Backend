@@ -36,6 +36,23 @@ public class ChatService {
     // DateTimeFormatter 정의
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    // 날짜 포맷팅
+    public class DateTimeUtil {
+    private static final DateTimeFormatter INPUT_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+    private static final DateTimeFormatter OUTPUT_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    /**
+     * ISO 형식의 문자열을 DB 저장용 형식으로 변환
+     * @param isoDateTimeStr 예: "2025-07-29T21:36:13.996"
+     * @return 예: "2025-07-29 21:36:13"
+     */
+    public static String formatForDatabase(String isoDateTimeStr) {
+        LocalDateTime dateTime = LocalDateTime.parse(isoDateTimeStr, INPUT_FORMATTER);
+        return dateTime.format(OUTPUT_FORMATTER);
+    }
+}
+
+
+
     /**
      * Search Room
      */

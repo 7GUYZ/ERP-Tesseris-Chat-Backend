@@ -12,6 +12,8 @@ import lombok.NoArgsConstructor;
 public class MessageRequestDTO {
     private String message_index;
     private String user_id; 
+    private String user_name;
+    private String user_email;
     private String sent_at;
     private String message;
     private String room_index;
