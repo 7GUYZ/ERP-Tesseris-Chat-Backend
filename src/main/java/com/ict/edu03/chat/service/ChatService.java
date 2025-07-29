@@ -1,6 +1,8 @@
 package com.ict.edu03.chat.service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -41,26 +43,6 @@ public class ChatService {
     private final MessageRepository messageRepository;
     private final MessageReadsRepository messageReadRepository;
 
-    // DateTimeFormatter 정의
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
-    // 날짜 포맷팅
-    public class DateTimeUtil {
-    private static final DateTimeFormatter INPUT_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-    private static final DateTimeFormatter OUTPUT_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    /**
-     * ISO 형식의 문자열을 DB 저장용 형식으로 변환
-     * @param isoDateTimeStr 예: "2025-07-29T21:36:13.996"
-     * @return 예: "2025-07-29 21:36:13"
-     */
-    public static String formatForDatabase(String isoDateTimeStr) {
-        LocalDateTime dateTime = LocalDateTime.parse(isoDateTimeStr, INPUT_FORMATTER);
-        return dateTime.format(OUTPUT_FORMATTER);
-    }
-}
-
-
-
     /**
      * Search Room
      */
@@ -89,16 +71,16 @@ public class ChatService {
                 // 방 생성
                 Room savedRoom = roomRepository.save(Room.builder()
                         .roomname(messageRequestDTO.getRoom_name())
-                        .createdat(LocalDateTime.parse(messageRequestDTO.getCreated_at(), DATE_TIME_FORMATTER))
+                        .createdat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
                         .createdby(messageRequestDTO.getCreated_by() != null
-                                ? LocalDateTime.parse(messageRequestDTO.getCreated_by(), DATE_TIME_FORMATTER)
+                                ? LocalDateTime.now(ZoneId.of("Asia/Seoul"))
                                 : null)
                         .build());
                 log.info("방 생성 완료");
                 // 방 참여자 저장
                 for (String participantId : messageRequestDTO.getParticipants()) {
                     roomParticipantsRepository.save(RoomParticipants.builder()
-                            .joinedat(LocalDateTime.parse(messageRequestDTO.getCreated_at(), DATE_TIME_FORMATTER))
+                            .joinedat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
                             .leftat(null)
                             .notificationsenabled(true)
                             .userid(participantId)
@@ -111,7 +93,7 @@ public class ChatService {
                             ChatLog.builder()
                                     .message("관리자 : 방생성")
                                     .logtype("RoomCreate")
-                                    .sentat(LocalDateTime.parse(messageRequestDTO.getCreated_at(), DATE_TIME_FORMATTER))
+                                    .sentat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
                                     .roomindex(savedRoom.getRoomindex())
                                     .userid(messageRequestDTO.getUser_id() != null ? messageRequestDTO.getUser_id()
                                             : "7c43ea93-44ed-4999-9eec-77f4af8c6025")
@@ -123,7 +105,7 @@ public class ChatService {
                 Message savedMessage = messageRepository.save(Message.builder()
                         .userid(messageRequestDTO.getUser_id() != null ? messageRequestDTO.getUser_id()
                                 : "7c43ea93-44ed-4999-9eec-77f4af8c6025")
-                        .sentat(LocalDateTime.parse(messageRequestDTO.getSent_at(), DATE_TIME_FORMATTER))
+                        .sentat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
                         .message(messageRequestDTO.getMessage())
                         .roomindex(savedRoom.getRoomindex())
                         .active(true)
@@ -142,7 +124,7 @@ public class ChatService {
                 chatLogRepository.save(ChatLog.builder()
                         .message(messageRequestDTO.getMessage())
                         .logtype("Message")
-                        .sentat(LocalDateTime.parse(messageRequestDTO.getCreated_at(), DATE_TIME_FORMATTER))
+                        .sentat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
                         .roomindex(savedRoom.getRoomindex())
                         .userid(messageRequestDTO.getUser_id() != null ? messageRequestDTO.getUser_id()
                                 : "7c43ea93-44ed-4999-9eec-77f4af8c6025")
@@ -154,7 +136,7 @@ public class ChatService {
                 Message savedMessage = messageRepository.save(Message.builder()
                         .userid(messageRequestDTO.getUser_id() != null ? messageRequestDTO.getUser_id()
                                 : "7c43ea93-44ed-4999-9eec-77f4af8c6025")
-                        .sentat(LocalDateTime.parse(messageRequestDTO.getSent_at(), DATE_TIME_FORMATTER))
+                        .sentat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
                         .message(messageRequestDTO.getMessage())
                         .active(true)
                         .roomindex(Long.parseLong(messageRequestDTO.getRoom_index()))
@@ -163,7 +145,7 @@ public class ChatService {
                 chatLogRepository.save(ChatLog.builder()
                         .message(messageRequestDTO.getMessage())
                         .logtype("Message")
-                        .sentat(LocalDateTime.parse(messageRequestDTO.getSent_at(), DATE_TIME_FORMATTER))
+                        .sentat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
                         .roomindex(Long.parseLong(messageRequestDTO.getRoom_index()))
                         .userid(messageRequestDTO.getUser_id() != null ? messageRequestDTO.getUser_id()
                                 : "7c43ea93-44ed-4999-9eec-77f4af8c6025")
@@ -217,6 +199,7 @@ public class ChatService {
         }
         return ResponseEntity.ok(ResponseDTO.createSuccessResponse("유저 초대 성공", null));
     }
+
     /**
      * check alram
      */
@@ -226,10 +209,11 @@ public class ChatService {
             if (!roomRepository.existsById(Long.parseLong(alarmCheck.getRoom_index()))) {
                 throw new RuntimeException("존재하지 않는 방입니다.");
             }
-           // 기존데이터 조회
-           RoomParticipants roomParticipants = roomParticipantsRepository.findByUseridAndRoomindex(alarmCheck.getUser_id(), Long.parseLong(alarmCheck.getRoom_index()));
+            // 기존데이터 조회
+            RoomParticipants roomParticipants = roomParticipantsRepository
+                    .findByUseridAndRoomindex(alarmCheck.getUser_id(), Long.parseLong(alarmCheck.getRoom_index()));
             if (roomParticipants != null) {
-                roomParticipants.setNotificationsenabled(false);
+                roomParticipants.setNotificationsenabled(alarmCheck.getAlarm_index().equals("true") ? true : false);
                 roomParticipantsRepository.save(roomParticipants);
                 log.info("{}의 알림 저장 성공", alarmCheck.getUser_id());
             }

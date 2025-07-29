@@ -23,12 +23,12 @@ import com.ict.edu03.chat.dto.SearchResponseDTO;
 import com.ict.edu03.chat.dto.RequestDTO.AlarmCheckRequestDTO;
 import com.ict.edu03.chat.dto.RequestDTO.InvitationRequestDTO;
 import com.ict.edu03.chat.dto.RequestDTO.MessageRequestDTO;
-import com.ict.edu03.chat.dto.RequestDTO.RoomRequestDTO;
 import com.ict.edu03.chat.service.ChatService;
 
 @Slf4j
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/api/adminchat")
 public class ChatController {
     private final ChatService chatService;
 
