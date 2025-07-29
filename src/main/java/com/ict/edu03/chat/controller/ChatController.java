@@ -32,11 +32,6 @@ import com.ict.edu03.chat.service.ChatService;
 public class ChatController {
     private final ChatService chatService;
 
-    @GetMapping("/")
-    public String home() {
-        return "Chat Service is running!";
-    }
-
     @GetMapping("/hello")
     public String hello() {
         return "하위요";
