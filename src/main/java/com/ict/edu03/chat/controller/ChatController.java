@@ -5,16 +5,21 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ict.edu03.chat.dto.ResponseDTO;
 import com.ict.edu03.chat.dto.SearchResponseDTO;
+import com.ict.edu03.chat.dto.RequestDTO.MessageRequestDTO;
 import com.ict.edu03.chat.dto.RequestDTO.RoomRequestDTO;
 import com.ict.edu03.chat.service.ChatService;
 
@@ -31,20 +36,8 @@ public class ChatController {
     }
 
     /**
-     * New Create Room API
-     */
-    @PostMapping("/roomcreate")
-    public ResponseEntity<RoomRequestDTO> RoomCreate(@RequestBody RoomRequestDTO roomResponseDTO) {
-        if (roomResponseDTO.getRoom_index() == null) {
-            log.info("RoomCreate {}", roomResponseDTO);
-            return ResponseEntity.ok(roomResponseDTO);
-        } else {
-            log.info("SearchRoom {}", roomResponseDTO);
-            return ResponseEntity.ok(roomResponseDTO);
-        }
-    }
-    /**
      * Search Room
+     * 
      * @param userid
      * @return
      */
@@ -52,14 +45,39 @@ public class ChatController {
     public ResponseEntity<ResponseDTO<?>> SearchRoom(@PathVariable("userid") String userid) {
         try {
             List<SearchResponseDTO> searchResponseDTOList = chatService.SearchRoom(userid);
-            return ResponseEntity.ok(ResponseDTO.createSuccessResponse(null ,searchResponseDTOList));
-        }catch (RuntimeException e) {
+            return ResponseEntity.ok(ResponseDTO.createSuccessResponse(null, searchResponseDTOList));
+        } catch (RuntimeException e) {
             log.error("SearchRoom Error: {}", e.getMessage());
             return ResponseEntity.ok(ResponseDTO.createErrorResponse(404, e.getMessage()));
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             log.error("SearchRoom Error: {}", e.getMessage());
             return ResponseEntity.ok(ResponseDTO.createErrorResponse(400, "서버오류"));
+        }
+    }
+
+    /**
+     * Send Message
+     * 
+     * @param messageRequestDTO
+     * @return
+     */
+    @PostMapping(value = "/sendmessage", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ResponseDTO<?>> SendMessage(@RequestPart("message") String messageRequestDTOs,
+            @RequestPart(value = "files", required = false) MultipartFile[] files) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            MessageRequestDTO messageRequestDTO = objectMapper.readValue(messageRequestDTOs, MessageRequestDTO.class);
+
+            if (messageRequestDTO.getRoom_index() == null) {
+                chatService.sendMessage(messageRequestDTO);
+                return ResponseEntity.ok(ResponseDTO.createSuccessResponse("방 생성 및 메세지 전송 성공", null));
+            } else {
+                chatService.sendMessage(messageRequestDTO);
+                return ResponseEntity.ok(ResponseDTO.createSuccessResponse("메세지 전송 성공", null));
+            }
+        } catch (Exception e) {
+            log.error("SendMessage Error: {}", e.getMessage());
+            return ResponseEntity.ok(ResponseDTO.createErrorResponse(404, e.getMessage()));
         }
     }
 
