@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -21,13 +22,14 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Entity
 @Table(name = "messagereads")
+@Builder
 public class MessageReads {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "messagereads_index", nullable = false)
     private Long messagereadsindex;
     
-    @Column(name = "read_at", nullable = false)
+    @Column(name = "read_at", nullable = true)
     private LocalDateTime readat;
     
     @Column(name = "user_id", nullable = false)
