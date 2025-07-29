@@ -26,10 +26,14 @@ import com.ict.edu03.chat.service.ChatService;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/adminchat")
 @RequiredArgsConstructor
 public class ChatController {
     private final ChatService chatService;
+
+    @GetMapping("/")
+    public String home() {
+        return "Chat Service is running!";
+    }
 
     @GetMapping("/hello")
     public String hello() {
