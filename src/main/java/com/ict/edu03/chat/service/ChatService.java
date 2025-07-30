@@ -75,14 +75,14 @@ public class ChatService {
         @Transactional
         public ResponseDTO<?> sendMessage(MessageRequestDTO messageRequestDTO, List<MultipartFile> files) {
                 try {
-                        if (messageRequestDTO.getRoom_index() == null) {
+                        if (messageRequestDTO.getRoom_index() == null || !roomRepository.existsById(Long.parseLong(messageRequestDTO.getRoom_index()))) {
                                 // 방 생성
                                 Room savedRoom = roomRepository.save(Room.builder()
-                                                .roomname(messageRequestDTO.getRoom_name())
+                                                .roomname(messageRequestDTO.getRoom_name() != null
+                                                                ? messageRequestDTO.getRoom_name()
+                                                                : messageRequestDTO.getUser_id())
                                                 .createdat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
-                                                .createdby(messageRequestDTO.getCreated_by() != null
-                                                                ? LocalDateTime.now(ZoneId.of("Asia/Seoul"))
-                                                                : null)
+                                                .createdby(null)
                                                 .build());
                                 log.info("방 생성 완료");
                                 // 방 참여자 저장
@@ -110,7 +110,22 @@ public class ChatService {
                                                                         .build());
                                         log.info("{}의 방생성 완료", participantId);
                                 }
-
+                                roomParticipantsRepository.save(RoomParticipants.builder()
+                                .joinedat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
+                                .leftat(null)
+                                .notificationsenabled(true)
+                                .userid(messageRequestDTO.getUser_id())
+                                .roomindex(savedRoom.getRoomindex())
+                                .build());
+                                chatLogRepository.save(ChatLog.builder()
+                                .message("관리자 : 방생성")
+                                .logtype("RoomCreate")
+                                .sentat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
+                                .roomindex(savedRoom.getRoomindex())
+                                .userid(messageRequestDTO.getUser_id() != null
+                                ? messageRequestDTO.getUser_id()
+                                : "7c43ea93-44ed-4999-9eec-77f4af8c6025")
+                                .build());
                                 // 메시지 저장
                                 Message savedMessage = messageRepository.save(Message.builder()
                                                 .userid(messageRequestDTO.getUser_id() != null
@@ -130,6 +145,19 @@ public class ChatService {
                                                         .readat(null)
                                                         .build());
                                         log.info("{}의 메세지 읽었는지 확인", participantId);
+                                }
+                                messageReadRepository.save(MessageReads.builder()
+                                .messageindex(savedMessage.getMessageindex())
+                                .userid(messageRequestDTO.getUser_id())
+                                .readat(null)
+                                .build());
+                                // 메세지 보낸 본인은 읽음 처리
+                                MessageReads messageReads = messageReadRepository.findByMessageindexAndUserid(
+                                                savedMessage.getMessageindex(), messageRequestDTO.getUser_id());
+                                if (messageReads != null && messageReads.getReadat() == null) {
+                                        messageReads.setReadat(LocalDateTime.now(ZoneId.of("Asia/Seoul")));
+                                        messageReadRepository.save(messageReads);
+                                        log.info("{}의 메세지 읽음 처리 완료", messageRequestDTO.getUser_id());
                                 }
                                 // 메시지 로그 저장
                                 chatLogRepository.save(ChatLog.builder()
@@ -170,7 +198,9 @@ public class ChatService {
                                         messageReadRepository.save(MessageReads.builder()
                                                         .messageindex(savedMessage.getMessageindex())
                                                         .userid(participantId.getUserid())
-                                                        .readat(null)
+                                                        .readat(participantId.getUserid().equals(messageRequestDTO.getUser_id())
+                                                                ? LocalDateTime.now(ZoneId.of("Asia/Seoul"))
+                                                                : null)
                                                         .build());
 
                                         log.info("{}의 메세지 읽었는지 확인", participantId.getUserid());
@@ -268,7 +298,7 @@ public class ChatService {
                                         unreadMessages.add(messageRead);
                                 }
                         }
-                        // 읽지 않은 메세지 한번에 업데이트 
+                        // 읽지 않은 메세지 한번에 업데이트
                         if (!unreadMessages.isEmpty()) {
                                 messageReadRepository.saveAll(unreadMessages);
                         }
@@ -304,14 +334,31 @@ public class ChatService {
         }
 
         /**
-         * 방 퇴장시 나간 사람 읽음처리 구분을 위한 나간 시간체크
+         * 방 퇴장시 나간 사람
          */
-        public ResponseEntity<?> Leave(String room, String userid) {
+        public ResponseDTO<?> Leave(String room, String userid) {
                 try {
-                        return ResponseEntity.ok(ResponseDTO.createSuccessResponse("방 퇴장 성공", null));
+                        RoomParticipants roomParticipants = roomParticipantsRepository.findByUseridAndRoomindex(userid,
+                                        Long.parseLong(room));
+                        if (roomParticipants != null && roomParticipants.getLeftat() == null) {
+                                roomParticipants.setLeftat(LocalDateTime.now(ZoneId.of("Asia/Seoul")));
+                                roomParticipantsRepository.save(roomParticipants);
+                                log.info("{}의 방 퇴장 처리 성공", userid);
+                        }
+                        // 방에 몇명이 남았는지 체크
+                        if (roomParticipantsRepository.findByRoomindexAndLeftatIsNull(Long.parseLong(room))
+                                        .size() == 0) {
+                                Room rooms = roomRepository.findById(Long.parseLong(room)).orElse(null);
+                                if (rooms != null) {
+                                        rooms.setCreatedby(LocalDateTime.now(ZoneId.of("Asia/Seoul")));
+                                        roomRepository.save(rooms);
+                                        log.info("{}의 방 삭제처리 완료", room);
+                                }
+                        }
+                        return ResponseDTO.createSuccessResponse("정상적으로 방에서 나가셨습니다.", null);
                 } catch (Exception e) {
                         log.error("Leave Error: {}", e.getMessage());
-                        return ResponseEntity.ok(ResponseDTO.createErrorResponse(404, e.getMessage()));
+                        return ResponseDTO.createErrorResponse(404, e.getMessage());
                 }
         }
 }
