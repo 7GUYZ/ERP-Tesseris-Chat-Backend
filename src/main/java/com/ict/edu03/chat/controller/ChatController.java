@@ -19,16 +19,21 @@ import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ict.edu03.chat.dto.ResponseDTO;
 import com.ict.edu03.chat.dto.SearchResponseDTO;
+import com.ict.edu03.chat.dto.RequestDTO.InvitationRequestDTO;
 import com.ict.edu03.chat.dto.RequestDTO.MessageRequestDTO;
 import com.ict.edu03.chat.dto.RequestDTO.RoomRequestDTO;
 import com.ict.edu03.chat.service.ChatService;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/adminchat")
 @RequiredArgsConstructor
 public class ChatController {
     private final ChatService chatService;
+
+    @GetMapping("/")
+    public String home() {
+        return "Chat Service is running!";
+    }
 
     @GetMapping("/hello")
     public String hello() {
@@ -63,16 +68,16 @@ public class ChatController {
      */
     @PostMapping(value = "/sendmessage", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ResponseDTO<?>> SendMessage(@RequestPart("message") String messageRequestDTOs,
-            @RequestPart(value = "files", required = false) MultipartFile[] files) {
+            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             MessageRequestDTO messageRequestDTO = objectMapper.readValue(messageRequestDTOs, MessageRequestDTO.class);
 
             if (messageRequestDTO.getRoom_index() == null) {
-                chatService.sendMessage(messageRequestDTO);
+                chatService.sendMessage(messageRequestDTO, files);
                 return ResponseEntity.ok(ResponseDTO.createSuccessResponse("방 생성 및 메세지 전송 성공", null));
             } else {
-                chatService.sendMessage(messageRequestDTO);
+                chatService.sendMessage(messageRequestDTO, files);
                 return ResponseEntity.ok(ResponseDTO.createSuccessResponse("메세지 전송 성공", null));
             }
         } catch (Exception e) {
@@ -81,4 +86,20 @@ public class ChatController {
         }
     }
 
+    /**
+     * user invitation
+     * 
+     * @param roomindex
+     * @return
+     */
+    @PostMapping("/{room}/invitation")
+    public ResponseEntity<?> UserInvitation(@PathVariable("room") String room, @RequestBody InvitationRequestDTO invitationRequestDTO) {
+        try {
+            chatService.userInvitation(room, invitationRequestDTO);
+            return ResponseEntity.ok(ResponseDTO.createSuccessResponse("유저 초대 성공", null));
+        } catch (Exception e) {
+            log.error("UserInvitation Error: {}", e.getMessage());
+            return ResponseEntity.ok(ResponseDTO.createErrorResponse(404, e.getMessage()));
+        }
+    }
 }
