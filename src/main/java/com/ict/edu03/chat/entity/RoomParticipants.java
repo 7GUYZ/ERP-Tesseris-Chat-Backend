@@ -3,6 +3,7 @@ package com.ict.edu03.chat.entity;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Column;
@@ -48,6 +49,5 @@ public class RoomParticipants {
     // FK 관계 설정 - 순환참조 방지
     @ManyToOne
     @JoinColumn(name = "room_index", insertable = false, updatable = false)
-    @JsonIgnore
     private Room room;
 }
