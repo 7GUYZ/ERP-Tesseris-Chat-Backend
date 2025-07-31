@@ -58,4 +58,9 @@ public class Message {
     @OneToMany(mappedBy = "message", fetch = FetchType.LAZY)
     @JsonIgnore
     private List<MessageReads> messageReads;
+    
+    // 양방향 관계 설정 - 순환참조 방지
+    @OneToMany(mappedBy = "message", fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<messagefiles> messageFiles;
 }
