@@ -24,9 +24,9 @@ import lombok.NoArgsConstructor;
 public class messagefiles {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "message_index")
+    @Column(name = "message_index", nullable = false)
     private Long messageindex; // 메시지 인덱스
-    @Column(name = "file_index")
+    @Column(name = "file_index", nullable = false)
     private Long fileindex; // 파일 인덱스
     
     // FK 관계 설정 - 순환참조 방지

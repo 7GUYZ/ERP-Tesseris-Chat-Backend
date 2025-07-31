@@ -29,19 +29,19 @@ import lombok.NoArgsConstructor;
 public class files {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "file_index")
+    @Column(name = "file_index", nullable = false)
     private Long fileindex;    // 파일 인덱스
-    @Column(name = "file_name")
+    @Column(name = "file_name", nullable = false)
     private String filename;   // 파일 이름
-    @Column(name = "file_path")
+    @Column(name = "file_path", nullable = false)
     private String filepath;   // 파일 경로
-    @Column(name = "file_type")
+    @Column(name = "file_type", nullable = false)
     private String filetype;   // 파일 타입
-    @Column(name = "uploaded_at")
+    @Column(name = "uploaded_at", nullable = false)
     private LocalDateTime uploadedat;   // 업로드 시간
-    @Column(name = "room_index")
+    @Column(name = "room_index", nullable = false)
     private Long roomindex;   // 방 인덱스
-    @Column(name = "user_id")
+    @Column(name = "user_id", nullable = false)
     private String userid;   // 사용자 아이디
     
     // FK 관계 설정 - 순환참조 방지
