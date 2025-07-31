@@ -2,22 +2,13 @@ package com.ict.edu03.chat.service;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import javax.swing.text.html.parser.Entity;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-
 import com.ict.edu03.chat.dto.ResponseDTO;
 import com.ict.edu03.chat.dto.SearchResponseDTO;
 import com.ict.edu03.chat.dto.RequestDTO.AlarmCheckRequestDTO;
@@ -33,7 +24,6 @@ import com.ict.edu03.chat.repository.MessageReadsRepository;
 import com.ict.edu03.chat.repository.MessageRepository;
 import com.ict.edu03.chat.repository.RoomParticipantsRepository;
 import com.ict.edu03.chat.repository.RoomRepository;
-
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,7 +63,7 @@ public class ChatService {
          * Send Message
          */
         @Transactional
-        public ResponseDTO<?> sendMessage(MessageRequestDTO messageRequestDTO, List<MultipartFile> files) {
+        public ResponseDTO<?> sendMessage(MessageRequestDTO messageRequestDTO) {
                 try {
                         if (messageRequestDTO.getRoom_index() == null || !roomRepository.existsById(Long.parseLong(messageRequestDTO.getRoom_index()))) {
                                 // 방 생성
@@ -104,33 +94,12 @@ public class ChatService {
                                                                         .sentat(LocalDateTime
                                                                                         .now(ZoneId.of("Asia/Seoul")))
                                                                         .roomindex(savedRoom.getRoomindex())
-                                                                        .userid(messageRequestDTO.getUser_id() != null
-                                                                                        ? messageRequestDTO.getUser_id()
-                                                                                        : "7c43ea93-44ed-4999-9eec-77f4af8c6025")
+                                                                        .userid(messageRequestDTO.getUser_id())
                                                                         .build());
                                         log.info("{}의 방생성 완료", participantId);
                                 }
-                                roomParticipantsRepository.save(RoomParticipants.builder()
-                                .joinedat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
-                                .leftat(null)
-                                .notificationsenabled(true)
-                                .userid(messageRequestDTO.getUser_id())
-                                .roomindex(savedRoom.getRoomindex())
-                                .build());
-                                chatLogRepository.save(ChatLog.builder()
-                                .message("관리자 : 방생성")
-                                .logtype("RoomCreate")
-                                .sentat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
-                                .roomindex(savedRoom.getRoomindex())
-                                .userid(messageRequestDTO.getUser_id() != null
-                                ? messageRequestDTO.getUser_id()
-                                : "7c43ea93-44ed-4999-9eec-77f4af8c6025")
-                                .build());
-                                // 메시지 저장
                                 Message savedMessage = messageRepository.save(Message.builder()
-                                                .userid(messageRequestDTO.getUser_id() != null
-                                                                ? messageRequestDTO.getUser_id()
-                                                                : "7c43ea93-44ed-4999-9eec-77f4af8c6025")
+                                                .userid(messageRequestDTO.getUser_id())
                                                 .sentat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
                                                 .message(messageRequestDTO.getMessage())
                                                 .roomindex(savedRoom.getRoomindex())
@@ -142,22 +111,11 @@ public class ChatService {
                                         messageReadRepository.save(MessageReads.builder()
                                                         .messageindex(savedMessage.getMessageindex())
                                                         .userid(participantId)
-                                                        .readat(null)
+                                                        .readat(participantId.equals(messageRequestDTO.getUser_id())
+                                                                ? LocalDateTime.now(ZoneId.of("Asia/Seoul"))
+                                                                : null)
                                                         .build());
                                         log.info("{}의 메세지 읽었는지 확인", participantId);
-                                }
-                                messageReadRepository.save(MessageReads.builder()
-                                .messageindex(savedMessage.getMessageindex())
-                                .userid(messageRequestDTO.getUser_id())
-                                .readat(null)
-                                .build());
-                                // 메세지 보낸 본인은 읽음 처리
-                                MessageReads messageReads = messageReadRepository.findByMessageindexAndUserid(
-                                                savedMessage.getMessageindex(), messageRequestDTO.getUser_id());
-                                if (messageReads != null && messageReads.getReadat() == null) {
-                                        messageReads.setReadat(LocalDateTime.now(ZoneId.of("Asia/Seoul")));
-                                        messageReadRepository.save(messageReads);
-                                        log.info("{}의 메세지 읽음 처리 완료", messageRequestDTO.getUser_id());
                                 }
                                 // 메시지 로그 저장
                                 chatLogRepository.save(ChatLog.builder()
@@ -165,18 +123,16 @@ public class ChatService {
                                                 .logtype("Message")
                                                 .sentat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
                                                 .roomindex(savedRoom.getRoomindex())
-                                                .userid(messageRequestDTO.getUser_id() != null
-                                                                ? messageRequestDTO.getUser_id()
-                                                                : "7c43ea93-44ed-4999-9eec-77f4af8c6025")
+                                                .userid(messageRequestDTO.getUser_id())
                                                 .build());
-                                log.info("채팅 로그 저장 완료");
-                                return ResponseDTO.createSuccessResponse("방 생성 및 메세지 전송 성공", null);
+                                log.info("채팅 로그 저장 완료 [반환값] : {}", savedRoom.getRoomindex());
+                                log.info("방 생성 완료 - 방 ID: {}, 방 이름: {}", savedRoom.getRoomindex(), savedRoom.getRoomname());
+                                messageRequestDTO.setRoom_index(String.valueOf(savedRoom.getRoomindex()));
+                                return ResponseDTO.createSuccessResponse("방 생성 및 메세지 전송 성공", savedRoom.getRoomindex());
                         } else {
                                 // 방에 메세지를 보낼때
                                 Message savedMessage = messageRepository.save(Message.builder()
-                                                .userid(messageRequestDTO.getUser_id() != null
-                                                                ? messageRequestDTO.getUser_id()
-                                                                : "7c43ea93-44ed-4999-9eec-77f4af8c6025")
+                                                .userid(messageRequestDTO.getUser_id())
                                                 .sentat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
                                                 .message(messageRequestDTO.getMessage())
                                                 .active(true)
@@ -188,9 +144,7 @@ public class ChatService {
                                                 .logtype("Message")
                                                 .sentat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
                                                 .roomindex(Long.parseLong(messageRequestDTO.getRoom_index()))
-                                                .userid(messageRequestDTO.getUser_id() != null
-                                                                ? messageRequestDTO.getUser_id()
-                                                                : "7c43ea93-44ed-4999-9eec-77f4af8c6025")
+                                                .userid(messageRequestDTO.getUser_id())
                                                 .build());
                                 log.info("채팅 로그 저장 완료");
                                 for (RoomParticipants participantId : roomParticipantsRepository
@@ -205,7 +159,8 @@ public class ChatService {
 
                                         log.info("{}의 메세지 읽었는지 확인", participantId.getUserid());
                                 }
-                                return ResponseDTO.createSuccessResponse("메세지 전송 성공", null);
+                                log.info("기존 방에 메시지 전송 - 방 ID: {}", messageRequestDTO.getRoom_index());
+                                return ResponseDTO.createSuccessResponse("메세지 전송 성공", Long.parseLong(messageRequestDTO.getRoom_index()));
                         }
                 } catch (Exception e) {
                         log.error("RoomCreate and SendMessage Error: {}", e.getMessage());
