@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -109,6 +110,56 @@ public class ChatController {
         try {
             log.info("CheckAlram: {}", alarmCheck);
             return ResponseEntity.ok(chatService.checkAlram(alarmCheck));
+        } catch (Exception e) {
+            log.error("Error: {}", e.getMessage());
+            return ResponseEntity.ok(ResponseDTO.createErrorResponse(404, e.getMessage()));
+        }
+    }
+
+    /**
+     * 채팅방 채팅 내용 조회
+     * 
+     * @param room
+     * @return
+     */
+    @GetMapping("/{room}/chatlist/{userid}")
+    public ResponseEntity<ResponseDTO<?>> ChatList(@PathVariable("room") String room,
+            @PathVariable("userid") String userid,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "25") int size) {
+        try {
+            log.info("ChatList: {}", room);
+            log.info("ChatList: {}", page);
+            log.info("ChatList: {}", size);
+            return ResponseEntity.ok(ResponseDTO.createSuccessResponse("채팅 내용 조회 성공", chatService.ChatList(room, userid, page, size)));
+        } catch (Exception e) {
+            log.error("Error: {}", e.getMessage());
+            return ResponseEntity.ok(ResponseDTO.createErrorResponse(404, e.getMessage()));
+        }
+    }
+
+    /**
+     * 위치에 따른 사용자 읽음 처리
+     * 고려사항
+     */
+    @PostMapping("/{room}/read/{messageid}/{userid}")
+    public ResponseEntity<?> MessageRead(@PathVariable("room") String room, @PathVariable("messageid") String messageid,
+            @PathVariable("userid") String userid) {
+        try {
+            return ResponseEntity.ok(chatService.MessageRead(room, messageid, userid));
+        } catch (Exception e) {
+            log.error("Error: {}", e.getMessage());
+            return ResponseEntity.ok(chatService.MessageRead(room, messageid, userid));
+        }
+    }
+
+    /**
+     * 방 퇴장시 나간 사람 읽음처리 구분을 위한 나간 시간체크
+     */
+    @PutMapping("/{room}/leave/{userid}")
+    public ResponseEntity<ResponseDTO<?>> Leave(@PathVariable("room") String room, @PathVariable("userid") String userid) {
+        try {
+            return ResponseEntity.ok(chatService.Leave(room, userid));
         } catch (Exception e) {
             log.error("Error: {}", e.getMessage());
             return ResponseEntity.ok(ResponseDTO.createErrorResponse(404, e.getMessage()));

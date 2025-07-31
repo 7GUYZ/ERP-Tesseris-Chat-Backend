@@ -46,6 +46,5 @@ public class Room {
     private List<Message> messages;
     
     @OneToMany(mappedBy = "room")
-    @JsonIgnore
     private List<RoomParticipants> roomParticipants;
 }
