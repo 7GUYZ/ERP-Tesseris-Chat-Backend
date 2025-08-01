@@ -15,6 +15,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -23,6 +24,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Table(name = "room")
 @Entity
+@Builder
 public class Room {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,6 +46,5 @@ public class Room {
     private List<Message> messages;
     
     @OneToMany(mappedBy = "room")
-    @JsonIgnore
     private List<RoomParticipants> roomParticipants;
 }
