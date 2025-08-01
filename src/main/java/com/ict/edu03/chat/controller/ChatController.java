@@ -33,11 +33,6 @@ import com.ict.edu03.chat.service.ChatService;
 public class ChatController {
     private final ChatService chatService;
 
-    @GetMapping("/hello")
-    public String hello() {
-        return "하위요";
-    }
-
     /**
      * Search Room
      * 
@@ -45,16 +40,15 @@ public class ChatController {
      * @return
      */
     @GetMapping("/{userid}")
-    public ResponseEntity<ResponseDTO<?>> SearchRoom(@PathVariable("userid") String userid) {
+    public ResponseDTO<?> SearchRoom(@PathVariable("userid") String userid) {
         try {
-            List<SearchResponseDTO> searchResponseDTOList = chatService.SearchRoom(userid);
-            return ResponseEntity.ok(ResponseDTO.createSuccessResponse(null, searchResponseDTOList));
+            return chatService.SearchRoom(userid);
         } catch (RuntimeException e) {
             log.error("SearchRoom Error: {}", e.getMessage());
-            return ResponseEntity.ok(ResponseDTO.createErrorResponse(404, e.getMessage()));
+            return ResponseDTO.createErrorResponse(404, e.getMessage());
         } catch (Exception e) {
             log.error("SearchRoom Error: {}", e.getMessage());
-            return ResponseEntity.ok(ResponseDTO.createErrorResponse(400, "서버오류"));
+            return ResponseDTO.createErrorResponse(400, "서버오류");
         }
     }
 
