@@ -75,8 +75,15 @@ public class ChatService {
         @Transactional
         public ResponseDTO<?> sendMessage(MessageRequestDTO messageRequestDTO) {
                 try {
-                        if (messageRequestDTO.getRoom_index() == null || !roomRepository
-                                        .existsById(Long.parseLong(messageRequestDTO.getRoom_index()))) {
+                        log.info("sendMessage 호출: room_index={}, room_name={}, user_id={}", 
+                                messageRequestDTO.getRoom_index(), messageRequestDTO.getRoom_name(), messageRequestDTO.getUser_id());
+                        
+                        // room_index가 null이거나 "null"이거나 빈 문자열이면 새 방 생성
+                        boolean shouldCreateNewRoom = messageRequestDTO.getRoom_index() == null || 
+                                                   "null".equals(messageRequestDTO.getRoom_index()) || 
+                                                   messageRequestDTO.getRoom_index().trim().isEmpty();
+                        
+                        if (shouldCreateNewRoom) {
                                 // 방 생성
                                 Room savedRoom = roomRepository.save(Room.builder()
                                                 .roomname(messageRequestDTO.getRoom_name() != null
@@ -142,25 +149,28 @@ public class ChatService {
                                 messageRequestDTO.setRoom_index(String.valueOf(savedRoom.getRoomindex()));
                                 return ResponseDTO.createSuccessResponse("방 생성 및 메세지 전송 성공", savedRoom.getRoomindex());
                         } else {
-                                // 방에 메세지를 보낼때
+                                // 기존 방에 메세지를 보낼때
+                                Long roomIndex = Long.parseLong(messageRequestDTO.getRoom_index());
+                                log.info("기존 방에 메시지 전송: room_index={}", roomIndex);
+                                
                                 Message savedMessage = messageRepository.save(Message.builder()
                                                 .userid(messageRequestDTO.getUser_id())
                                                 .sentat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
                                                 .message(messageRequestDTO.getMessage())
                                                 .active(true)
-                                                .roomindex(Long.parseLong(messageRequestDTO.getRoom_index()))
+                                                .roomindex(roomIndex)
                                                 .build());
                                 log.info("채팅 저장 완료");
                                 chatLogRepository.save(ChatLog.builder()
                                                 .message(messageRequestDTO.getMessage())
                                                 .logtype("Message")
                                                 .sentat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
-                                                .roomindex(Long.parseLong(messageRequestDTO.getRoom_index()))
+                                                .roomindex(roomIndex)
                                                 .userid(messageRequestDTO.getUser_id())
                                                 .build());
                                 log.info("채팅 로그 저장 완료");
                                 for (RoomParticipants participantId : roomParticipantsRepository
-                                                .findByRoomindex(Long.parseLong(messageRequestDTO.getRoom_index()))) {
+                                                .findByRoomindex(roomIndex)) {
                                         messageReadRepository.save(MessageReads.builder()
                                                         .messageindex(savedMessage.getMessageindex())
                                                         .userid(participantId.getUserid())
