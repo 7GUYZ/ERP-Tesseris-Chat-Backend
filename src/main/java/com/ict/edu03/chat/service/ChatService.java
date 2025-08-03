@@ -309,6 +309,15 @@ public class ChatService {
                 }
                 // 방 참여자 저장
                 for (String userid : invitationRequestDTO.getUserid()) {
+                        // 이미 방에 참여하고 있는지 확인
+                        RoomParticipants existingParticipant = roomParticipantsRepository
+                                        .findByUseridAndRoomindex(userid, Long.parseLong(room));
+                        
+                        if (existingParticipant != null) {
+                                log.info("{}는 이미 방에 참여하고 있습니다.", userid);
+                                continue; // 이미 참여 중이면 건너뛰기
+                        }
+                        
                         roomParticipantsRepository.save(RoomParticipants.builder()
                                         .userid(userid)
                                         .roomindex(Long.parseLong(room))
