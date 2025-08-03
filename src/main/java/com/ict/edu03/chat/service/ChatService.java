@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import com.ict.edu03.chat.dto.ResponseDTO;
 import com.ict.edu03.chat.dto.SearchResponseDTO;
+import com.ict.edu03.chat.dto.RoomCheckResponseDTO;
 import com.ict.edu03.chat.dto.RequestDTO.AlarmCheckRequestDTO;
 import com.ict.edu03.chat.dto.RequestDTO.InvitationRequestDTO;
 import com.ict.edu03.chat.dto.RequestDTO.MessageRequestDTO;
@@ -58,6 +59,12 @@ public class ChatService {
                                                 roomParticipant.getRoom().getRoomname() : 
                                                 "방 " + roomParticipant.getRoomindex();
                                         
+                                        // 해당 방의 모든 참가자 조회
+                                        List<RoomParticipants> allParticipants = roomParticipantsRepository.findByRoomindexAndLeftatIsNull(roomParticipant.getRoomindex());
+                                        List<String> participantUserIds = allParticipants.stream()
+                                                .map(RoomParticipants::getUserid)
+                                                .collect(Collectors.toList());
+                                        
                                         return new SearchResponseDTO(
                                                 String.valueOf(roomParticipant.getRoomindex()),
                                                 roomName,
@@ -65,7 +72,8 @@ public class ChatService {
                                                 roomParticipant.getLeftat() != null
                                                                 ? roomParticipant.getLeftat().toString()
                                                                 : null,
-                                                roomParticipant.getNotificationsenabled() ? "true" : "false");
+                                                roomParticipant.getNotificationsenabled() ? "true" : "false",
+                                                participantUserIds);
                                 })
                                 .collect(Collectors.toList());
                 return ResponseDTO.createSuccessResponse("참여중인 채팅방 조회 성공", searchResponseDTOList);
@@ -138,12 +146,16 @@ public class ChatService {
                                                 log.info("checkRoom: 기존 1:1 채팅방 발견 - room_index={}, room_name={}", existingRoomIndex, room.getRoomname());
                                                 
                                                 // 프론트엔드가 기대하는 형태로 데이터 구성
-                                                java.util.Map<String, Object> roomData = new java.util.HashMap<>();
-                                                roomData.put("id", String.valueOf(room.getRoomindex())); // roomindex를 id로 매핑
-                                                roomData.put("name", room.getRoomname());
-                                                roomData.put("room_index", String.valueOf(room.getRoomindex()));
+                                                RoomCheckResponseDTO roomData = RoomCheckResponseDTO.builder()
+                                                        .id(String.valueOf(room.getRoomindex()))
+                                                        .name(room.getRoomname())
+                                                        .room_index(String.valueOf(room.getRoomindex()))
+                                                        .build();
                                                 
                                                 log.info("checkRoom: 반환할 방 데이터={}", roomData);
+                                                log.info("checkRoom: roomData.getId()={}", roomData.getId());
+                                                log.info("checkRoom: roomData.getName()={}", roomData.getName());
+                                                log.info("checkRoom: roomData.getRoom_index()={}", roomData.getRoom_index());
                                                 
                                                 return ResponseDTO.createSuccessResponse("기존 1:1 채팅방이 존재합니다.", roomData);
                                         } else {
