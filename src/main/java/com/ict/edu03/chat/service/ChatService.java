@@ -3,7 +3,9 @@ package com.ict.edu03.chat.service;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -42,8 +44,8 @@ public class ChatService {
          * Search Room
          */
         public ResponseDTO<?> SearchRoom(String userid) {
-                // Entity 조회 및 dto 로 반환
-                List<RoomParticipants> roomParticipantsList = roomParticipantsRepository.findByUserid(userid);
+                // Entity 조회 및 dto 로 반환 (현재 참여 중인 채팅방만 조회)
+                List<RoomParticipants> roomParticipantsList = roomParticipantsRepository.findByUseridAndLeftatIsNull(userid);
                 if (roomParticipantsList.isEmpty()) {
                         throw new RuntimeException("참여중인 채팅방이 없습니다.");
                 }
@@ -67,6 +69,98 @@ public class ChatService {
                                 })
                                 .collect(Collectors.toList());
                 return ResponseDTO.createSuccessResponse("참여중인 채팅방 조회 성공", searchResponseDTOList);
+        }
+
+        /**
+         * Check Room - 1:1 채팅방 존재 여부 확인
+         */
+        public ResponseDTO<?> checkRoom(MessageRequestDTO messageRequestDTO) {
+                try {
+                        log.info("checkRoom 호출: participants={}", messageRequestDTO.getParticipants());
+                        
+                        if (messageRequestDTO.getParticipants() == null || messageRequestDTO.getParticipants().size() != 2) {
+                                log.warn("checkRoom: 1:1 채팅방이 아님 - participants size: {}", 
+                                        messageRequestDTO.getParticipants() != null ? messageRequestDTO.getParticipants().size() : "null");
+                                return ResponseDTO.createErrorResponse(400, "1:1 채팅방만 확인 가능합니다.");
+                        }
+                        
+                        String user1 = messageRequestDTO.getParticipants().get(0);
+                        String user2 = messageRequestDTO.getParticipants().get(1);
+                        
+                        log.info("checkRoom: 사용자1={}, 사용자2={}", user1, user2);
+                        
+                        // 두 사용자가 모두 참여하고 있는 1:1 채팅방 찾기
+                        List<RoomParticipants> user1Rooms = roomParticipantsRepository.findByUseridAndLeftatIsNull(user1);
+                        List<RoomParticipants> user2Rooms = roomParticipantsRepository.findByUseridAndLeftatIsNull(user2);
+                        
+                        log.info("checkRoom: 사용자1 참여 방 수={}, 사용자2 참여 방 수={}", user1Rooms.size(), user2Rooms.size());
+                        
+                        // 각 사용자의 방 정보 로깅
+                        log.info("checkRoom: 사용자1의 방 목록:");
+                        for (RoomParticipants rp : user1Rooms) {
+                                log.info("  - room_index={}, userid={}", rp.getRoomindex(), rp.getUserid());
+                        }
+                        log.info("checkRoom: 사용자2의 방 목록:");
+                        for (RoomParticipants rp : user2Rooms) {
+                                log.info("  - room_index={}, userid={}", rp.getRoomindex(), rp.getUserid());
+                        }
+                        
+                        // 두 사용자가 공통으로 참여하고 있는 방 찾기
+                        Set<Long> user1RoomIndexes = user1Rooms.stream()
+                                .map(RoomParticipants::getRoomindex)
+                                .collect(Collectors.toSet());
+                        
+                        Set<Long> user2RoomIndexes = user2Rooms.stream()
+                                .map(RoomParticipants::getRoomindex)
+                                .collect(Collectors.toSet());
+                        
+                        log.info("checkRoom: 사용자1 방 인덱스={}, 사용자2 방 인덱스={}", user1RoomIndexes, user2RoomIndexes);
+                        
+                        // 공통 방 찾기
+                        Set<Long> commonRooms = new HashSet<>(user1RoomIndexes);
+                        commonRooms.retainAll(user2RoomIndexes);
+                        
+                        log.info("checkRoom: 공통 방 인덱스={}", commonRooms);
+                        
+                        if (!commonRooms.isEmpty()) {
+                                // 1:1 채팅방이 존재하는 경우
+                                Long existingRoomIndex = commonRooms.iterator().next();
+                                
+                                // 해당 방의 참여자 수 확인 (1:1 채팅방인지 확인)
+                                List<RoomParticipants> roomParticipants = roomParticipantsRepository.findByRoomindexAndLeftatIsNull(existingRoomIndex);
+                                
+                                log.info("checkRoom: 방 {}의 참여자 수={}", existingRoomIndex, roomParticipants.size());
+                                
+                                if (roomParticipants.size() == 2) {
+                                        // 1:1 채팅방이 맞음
+                                        Room room = roomRepository.findById(existingRoomIndex).orElse(null);
+                                        if (room != null) {
+                                                log.info("checkRoom: 기존 1:1 채팅방 발견 - room_index={}, room_name={}", existingRoomIndex, room.getRoomname());
+                                                
+                                                // 프론트엔드가 기대하는 형태로 데이터 구성
+                                                java.util.Map<String, Object> roomData = new java.util.HashMap<>();
+                                                roomData.put("id", String.valueOf(room.getRoomindex())); // roomindex를 id로 매핑
+                                                roomData.put("name", room.getRoomname());
+                                                roomData.put("room_index", String.valueOf(room.getRoomindex()));
+                                                
+                                                log.info("checkRoom: 반환할 방 데이터={}", roomData);
+                                                
+                                                return ResponseDTO.createSuccessResponse("기존 1:1 채팅방이 존재합니다.", roomData);
+                                        } else {
+                                                log.warn("checkRoom: 방 정보를 찾을 수 없음 - room_index={}", existingRoomIndex);
+                                        }
+                                } else {
+                                        log.warn("checkRoom: 1:1 채팅방이 아님 - 참여자 수={}", roomParticipants.size());
+                                }
+                        }
+                        
+                        log.info("checkRoom: 기존 1:1 채팅방이 존재하지 않습니다.");
+                        return ResponseDTO.createErrorResponse(404, "기존 1:1 채팅방이 존재하지 않습니다.");
+                        
+                } catch (Exception e) {
+                        log.error("checkRoom Error: {}", e.getMessage(), e);
+                        return ResponseDTO.createErrorResponse(500, "채팅방 확인 중 오류가 발생했습니다.");
+                }
         }
 
         /**
@@ -256,13 +350,35 @@ public class ChatService {
          */
         public List<Message> ChatList(String room, String userid, int page, int size) {
                 try {
+                        log.info("ChatList 호출: room='{}', userid='{}', page={}, size={}", room, userid, page, size);
+                        log.info("ChatList: room 타입={}, 값='{}'", room != null ? room.getClass().getSimpleName() : "null", room);
+                        
+                        if (room == null || "undefined".equals(room) || "null".equals(room) || room.trim().isEmpty()) {
+                                log.error("ChatList Error: 유효하지 않은 room 파라미터: '{}'", room);
+                                return null;
+                        }
+                        
+                        Long roomIndex;
+                        try {
+                                roomIndex = Long.parseLong(room);
+                                log.info("ChatList: 파싱된 room_index={}", roomIndex);
+                        } catch (NumberFormatException e) {
+                                log.error("ChatList Error: room을 Long으로 파싱할 수 없음: '{}'", room);
+                                return null;
+                        }
+                        
                         Page<Message> messages = messageRepository.findByRoomindexOrderBySentatDesc(
-                                        Long.parseLong(room),
+                                        roomIndex,
                                         PageRequest.of(page, size));
+                        
+                        log.info("ChatList: 조회된 메시지 수={}", messages.getContent().size());
+                        
                         // 메세지 읽음 처리
                         // 사용자 읽음 상태 조회
                         List<MessageReads> messageReads = messageReadRepository.findMessageReadsByRoomAndUser(
-                                        Long.parseLong(room), userid);
+                                        roomIndex, userid);
+
+                        log.info("ChatList: 사용자 {}의 읽음 상태 조회 완료", userid);
 
                         // 읽지않은 메세지 수집
                         List<MessageReads> unreadMessages = new ArrayList<>();
@@ -281,11 +397,13 @@ public class ChatService {
                         // 읽지 않은 메세지 한번에 업데이트
                         if (!unreadMessages.isEmpty()) {
                                 messageReadRepository.saveAll(unreadMessages);
+                                log.info("ChatList: 읽지 않은 메시지 {}개 업데이트 완료", unreadMessages.size());
                         }
-                        log.info("채팅 내용 조회 성공2 : {}", messages.getContent().size());
+                        
+                        log.info("ChatList: 채팅 내용 조회 성공 - 메시지 수={}", messages.getContent().size());
                         return messages.getContent();
                 } catch (Exception e) {
-                        log.error("ChatList Error: {}", e.getMessage());
+                        log.error("ChatList Error: {}", e.getMessage(), e);
                         return null;
                 }
         }

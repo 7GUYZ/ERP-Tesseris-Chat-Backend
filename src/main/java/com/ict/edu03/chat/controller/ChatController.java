@@ -53,6 +53,22 @@ public class ChatController {
     }
 
     /**
+     * Check Room - 1:1 채팅방 존재 여부 확인
+     * 
+     * @param messageRequestDTO
+     * @return
+     */
+    @PostMapping(value = "/checkroom")
+    public ResponseDTO<?> CheckRoom(@RequestBody MessageRequestDTO messageRequestDTO) {
+        try {
+            return chatService.checkRoom(messageRequestDTO);
+        } catch (Exception e) {
+            log.error("CheckRoom Error: {}", e.getMessage());
+            return ResponseDTO.createErrorResponse(404, e.getMessage());
+        }
+    }
+
+    /**
      * Send Message
      * 
      * @param messageRequestDTO
