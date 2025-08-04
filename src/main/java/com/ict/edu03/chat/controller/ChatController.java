@@ -5,8 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -162,6 +164,21 @@ public class ChatController {
             @PathVariable("userid") String userid) {
         try {
             return ResponseEntity.ok(chatService.Leave(room, userid));
+        } catch (Exception e) {
+            log.error("Error: {}", e.getMessage());
+            return ResponseEntity.ok(ResponseDTO.createErrorResponse(404, e.getMessage()));
+        }
+    }
+
+    /**
+     * 메세지 삭제
+     */
+    @DeleteMapping("/{room_index}/{message_index}")
+    public ResponseEntity<?> DeleteMessage(@PathVariable("room_index") String room_index,
+            @PathVariable("message_index") String message_index) {
+        try {
+            log.info("DeleteMessage: room_index={}, message_index={}", room_index, message_index);
+            return ResponseEntity.ok(chatService.DeleteMessage(room_index, message_index));
         } catch (Exception e) {
             log.error("Error: {}", e.getMessage());
             return ResponseEntity.ok(ResponseDTO.createErrorResponse(404, e.getMessage()));
