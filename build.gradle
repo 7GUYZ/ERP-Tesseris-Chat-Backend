@@ -46,6 +46,7 @@ tasks.named('test') {
 // JVM 인코딩 설정
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
+	options.compilerArgs = ["-parameters"]
 }
 
 // Spring Boot 실행 시 JVM 옵션 설정
@@ -53,7 +54,8 @@ bootRun {
     jvmArgs = [
         '-Dfile.encoding=UTF-8',
         '-Duser.language=ko',
-        '-Duser.country=KR'
+        '-Duser.country=KR',
+		'-parameters'
     ]
 }
 

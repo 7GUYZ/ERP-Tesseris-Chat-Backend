@@ -33,11 +33,6 @@ import com.ict.edu03.chat.service.ChatService;
 public class ChatController {
     private final ChatService chatService;
 
-    @GetMapping("/hello")
-    public String hello() {
-        return "하위요";
-    }
-
     /**
      * Search Room
      * 
@@ -45,16 +40,31 @@ public class ChatController {
      * @return
      */
     @GetMapping("/{userid}")
-    public ResponseEntity<ResponseDTO<?>> SearchRoom(@PathVariable("userid") String userid) {
+    public ResponseDTO<?> SearchRoom(@PathVariable("userid") String userid) {
         try {
-            List<SearchResponseDTO> searchResponseDTOList = chatService.SearchRoom(userid);
-            return ResponseEntity.ok(ResponseDTO.createSuccessResponse(null, searchResponseDTOList));
+            return chatService.SearchRoom(userid);
         } catch (RuntimeException e) {
             log.error("SearchRoom Error: {}", e.getMessage());
-            return ResponseEntity.ok(ResponseDTO.createErrorResponse(404, e.getMessage()));
+            return ResponseDTO.createErrorResponse(404, e.getMessage());
         } catch (Exception e) {
             log.error("SearchRoom Error: {}", e.getMessage());
-            return ResponseEntity.ok(ResponseDTO.createErrorResponse(400, "서버오류"));
+            return ResponseDTO.createErrorResponse(400, "서버오류");
+        }
+    }
+
+    /**
+     * Check Room - 1:1 채팅방 존재 여부 확인
+     * 
+     * @param messageRequestDTO
+     * @return
+     */
+    @PostMapping(value = "/checkroom")
+    public ResponseDTO<?> CheckRoom(@RequestBody MessageRequestDTO messageRequestDTO) {
+        try {
+            return chatService.checkRoom(messageRequestDTO);
+        } catch (Exception e) {
+            log.error("CheckRoom Error: {}", e.getMessage());
+            return ResponseDTO.createErrorResponse(404, e.getMessage());
         }
     }
 
@@ -64,23 +74,13 @@ public class ChatController {
      * @param messageRequestDTO
      * @return
      */
-    @PostMapping(value = "/sendmessage", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ResponseDTO<?>> SendMessage(@RequestPart("message") String messageRequestDTOs,
-            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
+    @PostMapping(value = "/sendmessage")
+    public ResponseDTO<?> SendMessage(@RequestBody MessageRequestDTO messageRequestDTO) {
         try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            MessageRequestDTO messageRequestDTO = objectMapper.readValue(messageRequestDTOs, MessageRequestDTO.class);
-
-            if (messageRequestDTO.getRoom_index() == null) {
-                chatService.sendMessage(messageRequestDTO, files);
-                return ResponseEntity.ok(ResponseDTO.createSuccessResponse("방 생성 및 메세지 전송 성공", null));
-            } else {
-                chatService.sendMessage(messageRequestDTO, files);
-                return ResponseEntity.ok(ResponseDTO.createSuccessResponse("메세지 전송 성공", null));
-            }
+            return chatService.sendMessage(messageRequestDTO);
         } catch (Exception e) {
             log.error("SendMessage Error: {}", e.getMessage());
-            return ResponseEntity.ok(ResponseDTO.createErrorResponse(404, e.getMessage()));
+            return ResponseDTO.createErrorResponse(404, e.getMessage());
         }
     }
 
@@ -131,7 +131,8 @@ public class ChatController {
             log.info("ChatList: {}", room);
             log.info("ChatList: {}", page);
             log.info("ChatList: {}", size);
-            return ResponseEntity.ok(ResponseDTO.createSuccessResponse("채팅 내용 조회 성공", chatService.ChatList(room, userid, page, size)));
+            return ResponseEntity.ok(
+                    ResponseDTO.createSuccessResponse("채팅 내용 조회 성공", chatService.ChatList(room, userid, page, size)));
         } catch (Exception e) {
             log.error("Error: {}", e.getMessage());
             return ResponseEntity.ok(ResponseDTO.createErrorResponse(404, e.getMessage()));
@@ -157,7 +158,8 @@ public class ChatController {
      * 방 퇴장시 나간 사람 읽음처리 구분을 위한 나간 시간체크
      */
     @PutMapping("/{room}/leave/{userid}")
-    public ResponseEntity<ResponseDTO<?>> Leave(@PathVariable("room") String room, @PathVariable("userid") String userid) {
+    public ResponseEntity<ResponseDTO<?>> Leave(@PathVariable("room") String room,
+            @PathVariable("userid") String userid) {
         try {
             return ResponseEntity.ok(chatService.Leave(room, userid));
         } catch (Exception e) {
