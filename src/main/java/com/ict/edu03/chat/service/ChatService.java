@@ -24,7 +24,9 @@ import com.ict.edu03.chat.entity.Message;
 import com.ict.edu03.chat.entity.MessageReads;
 import com.ict.edu03.chat.entity.Room;
 import com.ict.edu03.chat.entity.RoomParticipants;
+import com.ict.edu03.chat.entity.files;
 import com.ict.edu03.chat.repository.ChatLogRepository;
+import com.ict.edu03.chat.repository.FilesRepository;
 import com.ict.edu03.chat.repository.MessageReadsRepository;
 import com.ict.edu03.chat.repository.MessageRepository;
 import com.ict.edu03.chat.repository.RoomParticipantsRepository;
@@ -42,6 +44,100 @@ public class ChatService {
         private final RoomParticipantsRepository roomParticipantsRepository;
         private final MessageRepository messageRepository;
         private final MessageReadsRepository messageReadRepository;
+        private final FilesRepository filesRepository;
+
+        /**
+         * 파일 정보를 DB에 저장하고 메시지와 연결
+         */
+        private void saveFilesToDatabase(Message savedMessage, List<String> uploadFiles, String userId, Long roomIndex) {
+                if (uploadFiles == null || uploadFiles.isEmpty()) {
+                        log.info("저장할 파일이 없습니다.");
+                        return;
+                }
+
+                log.info("파일 저장 시작: {}개 파일", uploadFiles.size());
+                
+                // 모든 파일을 저장
+                for (String fileUrl : uploadFiles) {
+                        try {
+                                log.info("파일 저장 중: {}", fileUrl);
+                                
+                                // 파일 정보 추출 (S3 URL에서 파일명 추출)
+                                String fileName = extractFileNameFromUrl(fileUrl);
+                                String fileType = extractFileTypeFromUrl(fileUrl);
+                                
+                                // files 테이블에 저장 (message_index 포함)
+                                files savedFile = filesRepository.save(files.builder()
+                                                .filename(fileName)
+                                                .filepath(fileUrl)
+                                                .filetype(fileType)
+                                                .uploadedat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
+                                                .roomindex(roomIndex)
+                                                .userid(userId)
+                                                .messageindex(savedMessage.getMessageindex())
+                                                .build());
+                                
+                                log.info("파일 정보 저장 완료: file_index={}, filename={}, message_index={}", 
+                                                savedFile.getFileindex(), fileName, savedMessage.getMessageindex());
+                                
+                                log.info("메시지-파일 연결 저장 완료: message_index={}, file_index={}", 
+                                                savedMessage.getMessageindex(), savedFile.getFileindex());
+                                
+                                // 파일 업로드 로그 저장
+                                chatLogRepository.save(ChatLog.builder()
+                                                .message(String.format("파일 업로드: %s", fileName))
+                                                .logtype("File")
+                                                .sentat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
+                                                .roomindex(roomIndex)
+                                                .userid(userId)
+                                                .build());
+                                
+                                log.info("파일 업로드 로그 저장 완료: filename={}", fileName);
+                                
+                        } catch (Exception e) {
+                                log.error("파일 저장 중 오류 발생: fileUrl={}, error={}", fileUrl, e.getMessage());
+                        }
+                }
+                
+                log.info("모든 파일 저장 완료: {}개 파일", uploadFiles.size());
+        }
+        
+        /**
+         * S3 URL에서 파일명 추출
+         */
+        private String extractFileNameFromUrl(String fileUrl) {
+                try {
+                        String[] parts = fileUrl.split("/");
+                        String fileNameWithExtension = parts[parts.length - 1];
+                        // UUID와 타임스탬프 제거하고 원본 파일명만 추출
+                        if (fileNameWithExtension.contains("_")) {
+                                String[] nameParts = fileNameWithExtension.split("_");
+                                if (nameParts.length >= 3) {
+                                        // 원본 파일명이 있는 경우 (예: chat-files/1/20241201_123456_uuid.jpg)
+                                        return nameParts[nameParts.length - 1];
+                                }
+                        }
+                        return fileNameWithExtension;
+                } catch (Exception e) {
+                        log.warn("파일명 추출 실패: {}", fileUrl);
+                        return "unknown_file";
+                }
+        }
+        
+        /**
+         * S3 URL에서 파일 타입 추출
+         */
+        private String extractFileTypeFromUrl(String fileUrl) {
+                try {
+                        if (fileUrl.contains(".")) {
+                                return fileUrl.substring(fileUrl.lastIndexOf(".") + 1).toLowerCase();
+                        }
+                        return "unknown";
+                } catch (Exception e) {
+                        log.warn("파일 타입 추출 실패: {}", fileUrl);
+                        return "unknown";
+                }
+        }
 
         /**
          * Search Room
@@ -244,6 +340,10 @@ public class ChatService {
                                                 .active(true)
                                                 .build());
                                 log.info("메시지 저장 완료");
+                                
+                                // 파일 정보 저장
+                                saveFilesToDatabase(savedMessage, messageRequestDTO.getUploadFiles(), 
+                                                messageRequestDTO.getUser_id(), savedRoom.getRoomindex());
                                 // 메세지 읽었는지 확인
                                 for (String participantId : messageRequestDTO.getParticipants()) {
                                         messageReadRepository.save(MessageReads.builder()
@@ -288,6 +388,10 @@ public class ChatService {
                                                 .roomindex(roomIndex)
                                                 .build());
                                 log.info("채팅 저장 완료");
+                                
+                                // 파일 정보 저장
+                                saveFilesToDatabase(savedMessage, messageRequestDTO.getUploadFiles(), 
+                                                messageRequestDTO.getUser_id(), roomIndex);
                                 chatLogRepository.save(ChatLog.builder()
                                                 .message(messageRequestDTO.getMessage())
                                                 .logtype("Message")
@@ -393,9 +497,40 @@ public class ChatService {
         }
 
         /**
+         * 메시지의 파일 정보 조회
+         */
+        private List<Map<String, Object>> getMessageFiles(Long messageIndex) {
+                try {
+                        log.info("🔍 파일 조회 시작: messageIndex={}", messageIndex);
+                        
+                        List<files> filesList = filesRepository.findByMessageindex(messageIndex);
+                        log.info("🔍 파일 조회 결과: messageIndex={}, 파일 수={}", messageIndex, filesList.size());
+                        
+                        List<Map<String, Object>> fileInfoList = new ArrayList<>();
+                        for (files file : filesList) {
+                                Map<String, Object> fileInfo = new HashMap<>();
+                                fileInfo.put("name", file.getFilename());
+                                fileInfo.put("type", file.getFiletype());
+                                fileInfo.put("url", file.getFilepath());
+                                fileInfo.put("size", 0); // S3에서 직접 조회하지 않으므로 0으로 설정
+                                fileInfoList.add(fileInfo);
+                                
+                                log.info("🔍 파일 정보: name={}, type={}, url={}", 
+                                                file.getFilename(), file.getFiletype(), file.getFilepath());
+                        }
+                        
+                        log.info("🔍 파일 정보 반환: messageIndex={}, 파일 정보 수={}", messageIndex, fileInfoList.size());
+                        return fileInfoList;
+                } catch (Exception e) {
+                        log.error("파일 정보 조회 중 오류: messageIndex={}, error={}", messageIndex, e.getMessage(), e);
+                        return new ArrayList<>();
+                }
+        }
+
+        /**
          * Chat List
          */
-        public List<Message> ChatList(String room, String userid, int page, int size) {
+        public List<Map<String, Object>> ChatList(String room, String userid, int page, int size) {
                 try {
                         log.info("ChatList 호출: room='{}', userid='{}', page={}, size={}", room, userid, page, size);
                         log.info("ChatList: room 타입={}, 값='{}'",
@@ -453,8 +588,29 @@ public class ChatService {
                                 log.info("ChatList: 읽지 않은 메시지 {}개 업데이트 완료", unreadMessages.size());
                         }
 
-                        log.info("ChatList: 채팅 내용 조회 성공 - 메시지 수={}", messages.getContent().size());
-                        return messages.getContent();
+                        // 메시지에 파일 정보 추가
+                        List<Map<String, Object>> messagesWithFiles = new ArrayList<>();
+                        for (Message message : messages.getContent()) {
+                                Map<String, Object> messageMap = new HashMap<>();
+                                messageMap.put("messageindex", message.getMessageindex());
+                                messageMap.put("userid", message.getUserid());
+                                messageMap.put("message", message.getMessage());
+                                messageMap.put("sentat", message.getSentat());
+                                messageMap.put("roomindex", message.getRoomindex());
+                                messageMap.put("active", message.getActive());
+                                
+                                // 파일 정보 추가
+                                List<Map<String, Object>> files = getMessageFiles(message.getMessageindex());
+                                messageMap.put("files", files);
+                                
+                                log.info("📝 메시지 파일 정보: messageIndex={}, 파일 수={}", 
+                                                message.getMessageindex(), files.size());
+                                
+                                messagesWithFiles.add(messageMap);
+                        }
+                        
+                        log.info("ChatList: 채팅 내용 조회 성공 - 메시지 수={}", messagesWithFiles.size());
+                        return messagesWithFiles;
                 } catch (Exception e) {
                         log.error("ChatList Error: {}", e.getMessage(), e);
                         return null;
