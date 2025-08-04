@@ -252,6 +252,7 @@ public class ChatService {
                                 log.info("채팅 로그 저장 완료 [반환값] : {}", savedRoom.getRoomindex());
                                 log.info("방 생성 완료 - 방 ID: {}, 방 이름: {}", savedRoom.getRoomindex(),
                                                 savedRoom.getRoomname());
+                                
                                 messageRequestDTO.setRoom_index(String.valueOf(savedRoom.getRoomindex()));
                                 return ResponseDTO.createSuccessResponse("방 생성 및 메세지 전송 성공", savedRoom.getRoomindex());
                         } else {
