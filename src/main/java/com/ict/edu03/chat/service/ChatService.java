@@ -275,8 +275,25 @@ public class ChatService {
                                 }
                         }
 
-                        log.info("checkRoom: 기존 1:1 채팅방이 존재하지 않습니다.");
-                        return ResponseDTO.createErrorResponse(404, "기존 1:1 채팅방이 존재하지 않습니다.");
+                        // 기존 방이 없는 경우, 새로운 room_index 생성
+                        log.info("checkRoom: 기존 1:1 채팅방이 존재하지 않습니다. 새로운 room_index 생성 중...");
+                        
+                        // 현재 DB에 있는 최대 room_index 조회
+                        Long maxRoomIndex = roomRepository.findMaxRoomIndex();
+                        Long newRoomIndex = (maxRoomIndex != null) ? maxRoomIndex + 1 : 1L;
+                        
+                        log.info("checkRoom: 새로운 room_index 생성 - maxRoomIndex={}, newRoomIndex={}", maxRoomIndex, newRoomIndex);
+                        
+                        // 새로운 방 데이터 생성 (실제 방은 sendMessage에서 생성됨)
+                        RoomCheckResponseDTO newRoomData = RoomCheckResponseDTO.builder()
+                                        .id(String.valueOf(newRoomIndex))
+                                        .name("새로운 채팅방")
+                                        .room_index(String.valueOf(newRoomIndex))
+                                        .isNewRoom(true)  // 새 방임을 표시
+                                        .build();
+                        
+                        log.info("checkRoom: 새로운 방 데이터 반환={}", newRoomData);
+                        return ResponseDTO.createSuccessResponse("새로운 채팅방을 생성할 수 있습니다.", newRoomData);
 
                 } catch (Exception e) {
                         log.error("checkRoom Error: {}", e.getMessage(), e);
@@ -380,6 +397,39 @@ public class ChatService {
                                 Long roomIndex = Long.parseLong(messageRequestDTO.getRoom_index());
                                 log.info("기존 방에 메시지 전송: room_index={}", roomIndex);
 
+                                // 해당 room_index가 실제로 존재하는지 확인
+                                Room existingRoom = roomRepository.findById(roomIndex).orElse(null);
+                                
+                                if (existingRoom == null) {
+                                        log.info("room_index={}인 방이 존재하지 않습니다. 방을 먼저 생성합니다.", roomIndex);
+                                        
+                                        // 방 생성
+                                        Room savedRoom = roomRepository.save(Room.builder()
+                                                        .roomname(messageRequestDTO.getRoom_name() != null
+                                                                        ? messageRequestDTO.getRoom_name()
+                                                                        : messageRequestDTO.getUser_id())
+                                                        .createdat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
+                                                        .createdby(null)
+                                                        .build());
+                                        
+                                        // 방 참여자 저장
+                                        for (String participantId : messageRequestDTO.getParticipants()) {
+                                                roomParticipantsRepository.save(RoomParticipants.builder()
+                                                                .joinedat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
+                                                                .leftat(null)
+                                                                .notificationsenabled(true)
+                                                                .userid(participantId)
+                                                                .roomindex(savedRoom.getRoomindex())
+                                                                .build());
+                                                log.info("방 참여자 {} 저장 완료", participantId);
+                                        }
+                                        
+                                        log.info("방 생성 완료 - 방 ID: {}, 방 이름: {}", savedRoom.getRoomindex(), savedRoom.getRoomname());
+                                        
+                                        // 생성된 방의 room_index로 메시지 저장
+                                        roomIndex = savedRoom.getRoomindex();
+                                }
+
                                 Message savedMessage = messageRepository.save(Message.builder()
                                                 .userid(messageRequestDTO.getUser_id())
                                                 .sentat(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
@@ -414,11 +464,11 @@ public class ChatService {
 
                                         log.info("{}의 메세지 읽었는지 확인", participantId.getUserid());
                                 }
-                                log.info("기존 방에 메시지 전송 - 방 ID: {}", messageRequestDTO.getRoom_index());
+                                log.info("기존 방에 메시지 전송 - 방 ID: {}", roomIndex);
                                 
                                 // messageindex와 room_index를 모두 포함한 Map 반환
                                 Map<String, Object> responseData = new HashMap<>();
-                                responseData.put("room_index", Long.parseLong(messageRequestDTO.getRoom_index()));
+                                responseData.put("room_index", roomIndex);
                                 responseData.put("messageindex", savedMessage.getMessageindex());
                                 
                                 return ResponseDTO.createSuccessResponse("메세지 전송 성공", responseData);
