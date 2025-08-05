@@ -54,8 +54,7 @@ bootRun {
     jvmArgs = [
         '-Dfile.encoding=UTF-8',
         '-Duser.language=ko',
-        '-Duser.country=KR',
-		'-parameters'
+        '-Duser.country=KR'
     ]
 }
 
