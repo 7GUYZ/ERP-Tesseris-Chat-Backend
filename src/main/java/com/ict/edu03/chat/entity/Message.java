@@ -62,5 +62,5 @@ public class Message {
     // 양방향 관계 설정 - 순환참조 방지
     @OneToMany(mappedBy = "message", fetch = FetchType.LAZY)
     @JsonIgnore
-    private List<messagefiles> messageFiles;
+    private List<files> files;
 }

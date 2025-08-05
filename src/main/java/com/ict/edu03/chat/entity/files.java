@@ -1,19 +1,16 @@
 package com.ict.edu03.chat.entity;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -44,14 +41,18 @@ public class files {
     @Column(name = "user_id", nullable = false)
     private String userid;   // 사용자 아이디
     
+    @Column(name = "message_index", nullable = false)
+    private Long messageindex;   // 메시지 인덱스
+    
     // FK 관계 설정 - 순환참조 방지
     @ManyToOne
     @JoinColumn(name = "room_index", insertable = false, updatable = false)
     @JsonIgnore
     private Room room;
     
-    // 양방향 관계 설정 - 순환참조 방지
-    @OneToMany(mappedBy = "file", fetch = FetchType.LAZY)
+    // FK 관계 설정 - 순환참조 방지
+    @ManyToOne
+    @JoinColumn(name = "message_index", insertable = false, updatable = false)
     @JsonIgnore
-    private List<messagefiles> messageFiles;
+    private Message message;
 }
