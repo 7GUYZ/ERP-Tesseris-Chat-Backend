@@ -2,7 +2,7 @@ name: CI/CD Deploy Chat Backend to Kubernetes
 
 on:
   push:
-    branches: [ main, sichan ]
+    branches: [ main, sichan]
 
 jobs:
   build-and-deploy:
